@@ -1,6 +1,16 @@
 package com.example.logmeapp;
 
 import android.content.Context;
+import android.net.Uri;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -26,20 +36,27 @@ public class Logme {
     private String environment;
     private Context context;
 
+    private StorageReference storageReference;
+
     public Logme(Context context, String environment, String tag, String session) {
         this.session = session;
         this.tag = tag;
         this.environment = environment;
         this.context = context;
+
+        storageReference = FirebaseStorage.getInstance().getReference();
     }
 
 
     public void log(String severity, String message){
-        String str = String.format("(%d) %d [%d] -%d: %d", severity, this.environment, this.session, this.tag, message);
+        String str = String.format(
+                "(%d) %d [%d] -%d: %d", severity, this.environment, this.session, this.tag, message);
         System.out.println(str);
     }
 
-    private void writeFileOnInternalStorage(String filename, String body){
+    private File writeFileOnInternalStorage(String filename, String body){
+        File file = null;
+
         File dir = new File(context.getApplicationContext().getFilesDir(), "logme");
         if(!dir.exists()){
             dir.mkdir();
@@ -51,10 +68,34 @@ public class Logme {
             writer.append(body);
             writer.flush();
             writer.close();
+            file = logfile;
         } catch (Exception e){
             e.printStackTrace();
         }
+
+        return file;
     }
+
+    private void uploadFile(String filename, File logfile){
+        Uri file = Uri.fromFile(logfile);
+        StorageReference logRef = storageReference.child("logs/" + filename);
+
+        logRef.putFile(file)
+                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        Toast.makeText(context, "Log upload Successful", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(context, "Log upload error", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+
 
 
     public void emergency(String message){
