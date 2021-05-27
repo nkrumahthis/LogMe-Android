@@ -1,12 +1,17 @@
 package com.example.logmeapp
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import java.io.File
 import java.io.FileWriter
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 class Logme(
     private val context: Context,
@@ -14,19 +19,6 @@ class Logme(
     private val tag: String,
     private val session: String
 ) {
-    val severity = arrayOf(
-        "EMERGENCY",
-        "ALERT",
-        "CRITICAL",
-        "ERROR",
-        "WARNING",
-        "NOTIFICATION",
-        "INFORMATIONAL",
-        "DEBUGGING"
-    )
-    val environments =
-        arrayOf("DEBUGGING", "STAGING", "PRODUCTION")
-
     val EMERGENCY = "EMERGENCY"
     val ALERT = "ALERT"
     val CRITICAL = "CRITICAL"
@@ -41,49 +33,60 @@ class Logme(
     private val storageReference: StorageReference
 
     fun log(severity: String?, message: String?) {
-        val str = String.format(
-            "(%d) %d [%d] -%d: %d", severity, environment, session, tag, message
-        )
+        val str = "($severity) $environment [$session] - $tag: $message"
         println(str)
-        uploadFile("logme.log", writeFileOnInternalStorage("logme.log", str))
+        writeLogToFile(str)
+        uploadFile()
     }
 
-    private fun writeFileOnInternalStorage(
-        filename: String,
-        body: String
-    ): File? {
-        var file: File? = null
+    @SuppressLint("NewApi")
+    private fun getFileName():String{
+        val current = LocalDateTime.now()
+
+        val formatter = DateTimeFormatter.ofPattern("-yyyy-MM-dd")
+        val formatted = current.format(formatter)
+
+        return "logme-$formatted.log"
+    }
+
+    private fun getFile():File{
+
         val dir = File(context.applicationContext.filesDir, "logme")
         if (!dir.exists()) {
             dir.mkdir()
         }
-        try {
-            val logfile = File(dir, filename)
-            val writer = FileWriter(logfile)
-            writer.append(body)
-            writer.flush()
-            writer.close()
-            file = logfile
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return file
+
+        return File(dir, getFileName())
     }
 
-    private fun uploadFile(filename: String, logfile: File?) {
-        val file = Uri.fromFile(logfile)
-        val logRef = storageReference.child("logs/$filename")
+    private fun createFileOnInternalStorage(){
+
+        val file = getFile()
+
+        // create a new file
+        try {
+            val isNewFileCreated: Boolean = file.createNewFile()
+
+            if (isNewFileCreated) {
+                println("file created successfully")
+            } else {
+                println("unable to create file")
+            }
+        } catch (e:Exception){
+            Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+        }
+
+    }
+
+    private fun writeLogToFile(text:String){
+        getFile().appendText(text)
+    }
+
+    private fun uploadFile() {
+
+        val file = Uri.fromFile(getFile())
+        val logRef = storageReference.child("logs/${getFileName()}")
         logRef.putFile(file)
-            .addOnSuccessListener {
-                Toast.makeText(
-                    context,
-                    "Log upload Successful",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-            .addOnFailureListener {
-                Toast.makeText(context, "Log upload error", Toast.LENGTH_SHORT).show()
-            }
     }
 
     fun emergency(message: String?) {
@@ -112,5 +115,6 @@ class Logme(
 
     init {
         storageReference = FirebaseStorage.getInstance().reference
+        createFileOnInternalStorage()
     }
 }
