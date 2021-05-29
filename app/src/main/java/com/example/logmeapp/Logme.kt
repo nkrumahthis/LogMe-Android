@@ -3,65 +3,50 @@ package com.example.logmeapp
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
-import android.os.Build
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import java.io.File
-import java.io.FileWriter
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-class Logme(
-    private val context: Context,
-    private val environment: String,
-    private val tag: String,
-    private val session: String
-) {
-    val EMERGENCY = "EMERGENCY"
-    val ALERT = "ALERT"
-    val CRITICAL = "CRITICAL"
-    val ERROR = "ERROR"
-    val WARNING = "WARNING"
-    val NOTIFICATION = "NOTIFICATION"
-    val INFORMATIONAL = "INFORMATIONAL"
-    val DEBUGGING = "DEBUGGING"
-    val STAGING = "STAGING"
-    val PRODUCTION = "PRODUCTION"
+/**
+ * enums
+ * timestamp
+ * staging
+ * upload file upon app terminate
+ * get uuid string for session
+ * use appname when tag is not available
+ * file name should be session id + userid
+ */
 
-    private val storageReference: StorageReference
+object Logme : Logmeable{
 
-    fun log(severity: String?, message: String?) {
-        val str = "($severity) $environment [$session] - $tag: $message"
-        println(str)
-        writeLogToFile(str)
-        uploadFile()
+    private lateinit var mEnvironment: Environment
+    private var mTag: String = ""
+    private var mSession: String = ""
+    private var mUser: String = ""
+    private var str:String = ""
+
+
+    override fun start(environment: Environment, tag: String, session: String, user:String) {
+        mEnvironment = environment
+        mTag = tag
+        mSession = session
+        mUser = user
     }
 
-    @SuppressLint("NewApi")
-    private fun getFileName():String{
-        val current = LocalDateTime.now()
-
-        val formatter = DateTimeFormatter.ofPattern("-yyyy-MM-dd")
-        val formatted = current.format(formatter)
-
-        return "logme-$formatted.log"
-    }
-
-    private fun getFile():File{
+    override fun stop(context: Context) {
 
         val dir = File(context.applicationContext.filesDir, "logme")
+
         if (!dir.exists()) {
             dir.mkdir()
         }
 
-        return File(dir, getFileName())
-    }
+        val filename = "$mSession-$mUser"
 
-    private fun createFileOnInternalStorage(){
-
-        val file = getFile()
+        val file = File(dir, filename)
 
         // create a new file
         try {
@@ -76,45 +61,67 @@ class Logme(
             Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
         }
 
+        // write log ot file
+        file.appendText(str)
+
+        if(mEnvironment != Environment.STAGING) {
+            val uri = Uri.fromFile(file)
+            val storageReference: StorageReference = FirebaseStorage.getInstance().reference
+            val logRef = storageReference.child("logs/logme-${filename}")
+            logRef.putFile(uri)
+        }
     }
 
-    private fun writeLogToFile(text:String){
-        getFile().appendText(text)
+    @SuppressLint("NewApi")
+    override fun log(severity: Severity, message: String?) {
+        val current = LocalDateTime.now()
+
+        val formatter = DateTimeFormatter.ofPattern("-yyyy-MM-dd")
+        val timestamp = current.format(formatter)
+
+        val s = "$timestamp ($severity) $mEnvironment [$mSession] - $mTag: $message \n"
+        str += s
+
+        if(mEnvironment != Environment.PRODUCTION) println(s)
     }
 
-    private fun uploadFile() {
-
-        val file = Uri.fromFile(getFile())
-        val logRef = storageReference.child("logs/${getFileName()}")
-        logRef.putFile(file)
+    override fun emergency(message: String?) {
+        log(Severity.EMERGENCY, message)
     }
 
-    fun emergency(message: String?) {
-        log(EMERGENCY, message)
+    override fun alert(message: String?) {
+        log(Severity.ALERT, message)
     }
 
-    fun alert(message: String?) {
-        log(ALERT, message)
+    override fun warn(message: String?) {
+        log(Severity.WARNING, message)
     }
 
-    fun warn(message: String?) {
-        log(WARNING, message)
+    override fun error(message: String?) {
+        log(Severity.ERROR, message)
     }
 
-    fun nofify(message: String?) {
-        log(NOTIFICATION, message)
+    override fun notify(message: String?) {
+        log(Severity.NOTIFICATION, message)
     }
 
-    fun info(message: String?) {
-        log(INFORMATIONAL, message)
+    override fun critical(message: String?) {
+        log(Severity.CRITICAL, message)
     }
 
-    fun debug(message: String?) {
-        log(DEBUGGING, message)
+    override fun info(message: String?) {
+        log(Severity.INFORMATIONAL, message)
     }
 
-    init {
-        storageReference = FirebaseStorage.getInstance().reference
-        createFileOnInternalStorage()
+    override fun debug(message: String?) {
+        log(Severity.DEBUGGING, message)
+    }
+
+    enum class Severity{
+        INFORMATIONAL, NOTIFICATION, DEBUGGING, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY
+    }
+
+    enum class Environment{
+        DEBUGGING, STAGING, PRODUCTION
     }
 }

@@ -7,18 +7,19 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var logger:Logme
     private var count:Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        Logme.start(Logme.Environment.DEBUGGING, "Counter", "session", "user")
+
         tvDisplay.text = count.toString()
 
         btCount.setOnClickListener {
             count++
-            logger.info("count increased")
+            Logme.info("count increased")
             updateDisplay()
         }
 
@@ -28,12 +29,15 @@ class MainActivity : AppCompatActivity() {
 
         }
 
-        logger = Logme(this@MainActivity, "DEBUGGING", "Counter", "nkrumahthis")
+    }
 
+    override fun onStop() {
+        super.onStop()
+        Logme.stop(this@MainActivity)
     }
 
     private fun updateDisplay(){
         tvDisplay.text = count.toString()
-        logger.info("display updated")
+        Logme.info("display updated")
     }
 }
