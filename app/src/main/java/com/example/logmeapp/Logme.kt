@@ -27,6 +27,7 @@ object Logme : Logmeable{
     private var mSession: String = ""
     private var mUser: String = ""
     private var str:String = ""
+    var stest: String = ""
 
 
     override fun start(environment: Environment, tag: String, session: String, user:String) {
@@ -35,6 +36,8 @@ object Logme : Logmeable{
         mSession = session
         mUser = user
     }
+
+
 
     override fun stop(context: Context) {
 
@@ -76,11 +79,12 @@ object Logme : Logmeable{
     override fun log(severity: Severity, message: String?) {
         val current = LocalDateTime.now()
 
-        val formatter = DateTimeFormatter.ofPattern("-yyyy-MM-dd")
+        val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd-HH:MM-")
         val timestamp = current.format(formatter)
 
         val s = "$timestamp ($severity) $mEnvironment [$mSession] - $mTag: $message \n"
         str += s
+        stest = s
 
         if(mEnvironment != Environment.PRODUCTION) println(s)
     }
