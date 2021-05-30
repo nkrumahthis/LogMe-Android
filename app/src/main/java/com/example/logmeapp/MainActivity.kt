@@ -7,7 +7,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
-    private var count:Int = 0
+    var count:Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -18,17 +18,25 @@ class MainActivity : AppCompatActivity() {
         tvDisplay.text = count.toString()
 
         btCount.setOnClickListener {
-            count++
-            Logme.info("count increased")
-            updateDisplay()
+            count()
         }
 
         btReset.setOnClickListener {
-            count = 0
-            updateDisplay()
+            reset()
 
         }
 
+    }
+
+    fun count(){
+        count++
+        Logme.info("count increased")
+        updateDisplay()
+    }
+
+    fun reset(){
+        count = 0
+        updateDisplay()
     }
 
     override fun onStop() {
@@ -40,4 +48,5 @@ class MainActivity : AppCompatActivity() {
         tvDisplay.text = count.toString()
         Logme.info("display updated")
     }
+
 }

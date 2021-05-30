@@ -37,42 +37,22 @@ object Logme : Logmeable{
         mUser = user
     }
 
-
-
-    override fun stop(context: Context) {
-
-        val dir = File(context.applicationContext.filesDir, "logme")
-
-        if (!dir.exists()) {
-            dir.mkdir()
-        }
-
-        val filename = "$mSession-$mUser"
-
-        val file = File(dir, filename)
-
-        // create a new file
+     override fun stop(context: Context) {
         try {
-            val isNewFileCreated: Boolean = file.createNewFile()
+            val filename = "$mSession-$mUser"
 
-            if (isNewFileCreated) {
-                println("file created successfully")
-            } else {
-                println("unable to create file")
-            }
+            // make file object and create file
+            val file = makeFile(context, filename)
+
+            // write log ot file
+            file.appendText(str)
+
+            //upload file
+            uploadFile(file, filename)
         } catch (e:Exception){
-            Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+             Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
         }
 
-        // write log ot file
-        file.appendText(str)
-
-        if(mEnvironment != Environment.STAGING) {
-            val uri = Uri.fromFile(file)
-            val storageReference: StorageReference = FirebaseStorage.getInstance().reference
-            val logRef = storageReference.child("logs/logme-${filename}")
-            logRef.putFile(uri)
-        }
     }
 
     @SuppressLint("NewApi")
@@ -128,4 +108,29 @@ object Logme : Logmeable{
     enum class Environment{
         DEBUGGING, STAGING, PRODUCTION
     }
+
+    private fun makeFile(context:Context, filename:String): File{
+
+        val dir = File(context.applicationContext.filesDir, "logme")
+
+        if (!dir.exists()) {
+            dir.mkdir()
+        }
+
+        val file = File(dir, filename)
+
+        file.createNewFile()
+
+        return file
+    }
+
+    private fun uploadFile(file:File, filename:String) {
+
+        val uri = Uri.fromFile(file)
+        val storageReference: StorageReference = FirebaseStorage.getInstance().reference
+        val logRef = storageReference.child("logs/logme-${filename}")
+        logRef.putFile(uri)
+    }
+
+
 }
